@@ -1,0 +1,32 @@
+SELECT
+  round(sum(total_amount)), z."Borough" 
+FROM
+  ny_taxi.public.yellow_taxi_trips ytt , "zone" z 
+WHERE
+  DATE(lpep_pickup_datetime) = '2019-09-18' and z."Borough" != 'Unknown'
+  group by z."Borough" 
+  
+  
+SELECT
+  ytt."DOLocationID",  ytt.tip_amount  ,ytt."PULocationID" 
+FROM
+  ny_taxi.public.yellow_taxi_trips ytt , "zone" z 
+where
+ytt."PULocationID" = z."LocationID" and z."Zone" = 'Astoria'  
+
+
+
+select z."Zone" 
+from yellow_taxi_trips ytt , "zone" z 
+where ytt."DOLocationID" = z."LocationID" 
+and ytt."DOLocationID" = 132
+
+
+
+select z."Zone" 
+from yellow_taxi_trips ytt , "zone" z 
+where ytt."DOLocationID" = z."LocationID" 
+and ytt."DOLocationID" = 132
+
+
+
