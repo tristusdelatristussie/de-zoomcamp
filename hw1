@@ -204,3 +204,86 @@ def export_data(data, *args, **kwargs):
         filesystem = gcs
 
     )
+
+
+
+create table before read parquet url https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
+
+
+import os
+import psycopg2
+
+def load_postgres_config(filename):
+    """Loads environment variables from a specified file."""
+    with open(filename) as f:
+        for line in f:
+            key, value = line.strip().split('=')
+            os.environ[key] = value
+
+def create_table(cursor, table_name, schema, query):
+    """Creates a table in the specified schema."""
+    try:
+        cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+        cursor.execute(f"CREATE TABLE {schema}.{table_name} {query}")
+    except Exception as e:
+        print(f"Error creating table: {e}")
+
+def load_data(connection, cursor, schema, table_name, data_directory):
+    """Loads data from Parquet files into the specified table."""
+    try:
+        df = pd.read_parquet(data_directory)
+        # Convert data types if needed (add logic here)
+        cursor.executemany(f"INSERT INTO {schema}.{table_name} VALUES (...)", df.to_records(index=False))
+        connection.commit()
+    except Exception as e:
+        print(f"Error loading data: {e}")
+
+# Load credentials from .postgres file
+load_postgres_config(".postgres")
+
+# Extract Postgres connection details from environment variables
+dbname = os.environ["POSTGRES_DBNAME"]
+user = os.environ["POSTGRES_USER"]
+password = os.environ["POSTGRES_PASSWORD"]
+host = 'localhost'
+port = int(os.environ["POSTGRES_PORT"])
+schema = os.environ["POSTGRES_SCHEMA"]  # Optional schema for table creation
+
+# Replace with your desired table name and schema
+table_name = "green_taxi_trips_2022"
+query = """
+(
+    vendor_id BIGINT,
+    passenger_count INT,
+    trip_distance FLOAT,
+    ratecode_id INT,
+    store_and_fwd_flag VARCHAR(50),
+    pulocation_id INT,
+    dolocation_id INT,
+    payment_type INT,
+    fare_amount FLOAT,
+    extra FLOAT,
+    mta_tax FLOAT,
+    tip_amount FLOAT,
+    tolls_amount FLOAT,
+    improvement_surcharge FLOAT,
+    total_amount FLOAT
+)
+"""
+
+try:
+    # Connect to Postgres
+    connection = psycopg2.connect(dbname=dbname, user=user, password=password, host=host, port=port)
+    cursor = connection.cursor()
+
+    # Create the table (adjust schema if needed)
+    create_table(cursor, table_name, schema, query)
+
+    # ... (continue with data loading as planned)
+
+except Exception as e:
+    print(f"Error connecting or creating table: {e}")
+finally:
+    if connection:
+        connection.close()
+
