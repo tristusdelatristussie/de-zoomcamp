@@ -32,7 +32,7 @@ and ytt."DOLocationID" = 132
 
 hw2 
 
-data_loader
+1/data_loader
 
 
 import io
@@ -81,7 +81,7 @@ def test_output(output, *args) -> None:
 
 
 
-transformer
+2/transformer
 
 
 if 'transformer' not in globals():
@@ -136,7 +136,7 @@ def test_output(output, *args) -> None:
 
 
 
-data exporter 
+3/ data exporter to postgres
 
 
 from mage_ai.settings.repo import get_repo_path
@@ -173,7 +173,7 @@ def export_data_to_postgres(df: DataFrame, **kwargs) -> None:
 
 
 
-data exporter to gcs
+3/ data exporter to gcs
 
 
 import pyarrow as pa
@@ -205,7 +205,7 @@ def export_data(data, *args, **kwargs):
 
     )
 
-
+---------------------------------------------------------------------
 
 create table before read parquet url https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
 
@@ -286,4 +286,143 @@ except Exception as e:
 finally:
     if connection:
         connection.close()
+
+
+------------------------------------
+
+Q2 hw2 table externe green_taxy to BQ
+
+1/ data loader
+
+import io
+import pandas as pd
+import requests
+import pyarrow.parquet as pq
+import requests
+
+
+if 'data_loader' not in globals():
+    from mage_ai.data_preparation.decorators import data_loader
+if 'test' not in globals():
+    from mage_ai.data_preparation.decorators import test
+
+
+@data_loader
+def load_data_from_api(*args, **kwargs):
+    import pandas as pd
+    from io import BytesIO
+    import requests
+    from datetime import datetime
+
+
+    base_url = "https://d37ci6vzurychx.cloudfront.net/trip-data/"
+
+    df_final = pd.DataFrame()
+
+
+
+    for year in range(2022, 2022 + 1):
+        for month in range(1, 12 + 1):  # Loop through all months
+            print(year, month)
+            filename = f"green_tripdata_{year:04d}-{month:02d}.parquet"
+            print(base_url+filename)
+            df_temp = pd.read_parquet(base_url+filename)
+            df_final = pd.concat([df_final, df_temp], ignore_index=True)
+
+    print(df_final.info())
+    print(df_final.shape)
+    return df_final
+
+
+
+
+@test
+def test_output(output, *args) -> None:
+    """
+    Template code for testing the output of the block.
+    """
+    assert output is not None, 'The output is undefined'
+
+2/ data transformer
+
+if 'transformer' not in globals():
+    from mage_ai.data_preparation.decorators import transformer
+if 'test' not in globals():
+    from mage_ai.data_preparation.decorators import test
+
+import pandas as pd
+
+@transformer
+def transform(data, *args, **kwargs):
+
+    print(data.shape)
+    print(data.info())
+    #print(data[(data['passenger_count'] > 0) & (data['trip_distance'] >  0)].info())
+    print('valeurs uniques' ,data['VendorID'].nunique())
+    print('valeurs uniques' ,data['VendorID'].unique())
+
+    data = data[(data['passenger_count'] != 0) & (data['trip_distance'] != 0)]
+    data['lpep_pickup_datetime'] = pd.to_datetime(data['lpep_pickup_datetime'])
+    data['lpep_pickup_date'] = data['lpep_pickup_datetime'].dt.date
+
+    import re
+
+    def camel_to_snake(name):
+        snake_case = re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+        return snake_case
+
+    data.columns = [camel_to_snake(c) for c in data.columns]
+
+    print(data.info())
+
+    return data
+
+
+@test
+def test_output(output, *args) -> None:
+    # Assertion for vendor_id
+    assert output['vendor_id'].isin(output['vendor_id'].unique()).all(), "Not all vendor_id values are valid."
+
+    # Assertion for passenger_count
+    assert output['passenger_count'].min() > 0, "There are rows with non-positive passenger_count."
+
+    # Assertion for trip_distance
+    assert output['trip_distance'].min() > 0, "There are rows with non-positive trip_distance."
+
+    # Optional: Print confirmation message if assertions pass
+    print("All assertions passed! Data seems valid.")
+    assert output is not None, 'The output is undefined'
+
+
+3/ data export 
+
+
+import pyarrow as pa
+import pyarrow.parquet as pq
+import os
+
+
+if 'data_exporter' not in globals():
+    from mage_ai.data_preparation.decorators import data_exporter
+
+
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = "/home/src/personal-gcp.json/XXXXXXXXXXXXXXXXXXX.json"
+bucket_name = 'magic-zoomcamp'
+object_key = 'nyc_taxi_data.parquet'
+project_id = 'XXXXXXXXXXXXXXXXXX'
+table_name = 'nyc_taxi_data'
+root_path = f"{bucket_name}/{table_name}"
+
+@data_exporter
+def export_data(data, *args, **kwargs):
+    table = pa.Table.from_pandas(data)
+    gcs = pa.fs.GcsFileSystem()
+
+    pq.write_to_dataset(
+        table,
+        root_path=root_path,
+        partition_cols=['lpep_pickup_date'],
+        filesystem = gcs
+
+    )
 
