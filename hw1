@@ -426,3 +426,11 @@ def export_data(data, *args, **kwargs):
 
     )
 
+--------------------------------
+1/ Bucket to bigQuery
+
+CREATE OR REPLACE EXTERNAL TABLE XXXXXXX.green_taxy_id.green_taxi_external
+OPTIONS (
+  format = 'parquet',
+  uris = ['https://storage.cloud.google.com/magic-zoomcamp/nyc_taxi_data_green.parquet']
+);
