@@ -427,10 +427,30 @@ def export_data(data, *args, **kwargs):
     )
 
 --------------------------------
-1/ Bucket to bigQuery
+1/ Bucket to bigQuery - External table
 
 CREATE OR REPLACE EXTERNAL TABLE XXXXXXX.green_taxy_id.green_taxi_external
 OPTIONS (
   format = 'parquet',
   uris = ['https://storage.cloud.google.com/magic-zoomcamp/nyc_taxi_data_green.parquet']
 );
+2/ Materialize table
+
+CREATE OR REPLACE TABLE `xxxxxx.green_taxy_id.materialize_table` as 
+(
+  select * from xxxxxxxx.green_taxy_id.green_taxi_external
+  )
+
+3/ Cluster and partition to make an optimized table in Big Query 
+if your query will always order the results by PUlocationID 
+and filter based on lpep_pickup_datetime 
+
+
+CREATE OR REPLACE EXTERNAL TABLE xxxxxxxxxxxxxxxx.green_taxy_id.green_taxi_external
+PARTITION BY date(lpep_pickup_datetime)
+cluster by pulocation_id as (
+  select * from `xxxxxxxxxxxxxxx.green_taxy_id.green_taxi_external`
+)
+
+
+
